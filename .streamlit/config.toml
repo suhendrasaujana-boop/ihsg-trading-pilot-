@@ -1,0 +1,6 @@
+[runner]
+# Force Python 3.11 yang lebih stabil
+python_version = "3.11"
+
+[server]
+maxUploadSize = 10
