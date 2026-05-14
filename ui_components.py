@@ -6,8 +6,77 @@ import pandas as pd
 class UIComponents:
     
     @staticmethod
+    def apply_light_theme():
+        """Apply light theme permanently"""
+        st.markdown("""
+        <style>
+            /* Main background */
+            .stApp {
+                background-color: #ffffff !important;
+            }
+            
+            /* Text color */
+            .stMarkdown, .stText, .stTitle, .stSubtitle, .stHeader {
+                color: #1a1a1a !important;
+            }
+            
+            /* Sidebar */
+            .css-1d391kg, .stSidebar {
+                background-color: #f8f9fa !important;
+            }
+            
+            /* Metric cards */
+            [data-testid="stMetricValue"] {
+                color: #1a1a1a !important;
+            }
+            
+            [data-testid="stMetricLabel"] {
+                color: #666666 !important;
+            }
+            
+            /* Expander */
+            .streamlit-expanderHeader {
+                color: #1a1a1a !important;
+                background-color: #f8f9fa !important;
+            }
+            
+            /* Select box */
+            .stSelectbox label {
+                color: #1a1a1a !important;
+            }
+            
+            /* Info box */
+            .stAlert {
+                background-color: #e3f2fd !important;
+                color: #1a1a1a !important;
+            }
+            
+            /* Dataframe */
+            .stDataFrame {
+                background-color: #ffffff !important;
+            }
+            
+            /* Input field */
+            .stTextInput label {
+                color: #1a1a1a !important;
+            }
+            
+            /* Button */
+            .stButton button {
+                background-color: #0066cc !important;
+                color: white !important;
+            }
+            
+            /* Chart background */
+            .js-plotly-plot {
+                background-color: #ffffff !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    @staticmethod
     def create_candlestick_chart(df, title="Price Chart"):
-        """Create interactive candlestick chart"""
+        """Create interactive candlestick chart - fixed width parameter"""
         fig = make_subplots(
             rows=3, cols=1,
             shared_xaxes=True,
@@ -68,9 +137,14 @@ class UIComponents:
         fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
         fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
         
-        # Volume
-        colors = ['red' if row['Open'] > row['Close'] else 'green' 
-                  for idx, row in df.iterrows()]
+        # Volume - fixed color logic
+        colors = []
+        for i in range(len(df)):
+            if df['Open'].iloc[i] > df['Close'].iloc[i]:
+                colors.append('red')
+            else:
+                colors.append('green')
+        
         fig.add_trace(
             go.Bar(x=df.index, y=df['Volume'], name="Volume", marker_color=colors),
             row=3, col=1
@@ -80,37 +154,40 @@ class UIComponents:
             title=title,
             xaxis_title="Date",
             yaxis_title="Price",
-            template="plotly_dark",
+            template="plotly_white",
             height=800,
-            showlegend=True
+            showlegend=True,
+            paper_bgcolor='white',
+            plot_bgcolor='white'
         )
         
         fig.update_xaxes(rangeslider_visible=False)
+        fig.update_yaxes(gridcolor='#e0e0e0', gridwidth=0.5)
         
         return fig
     
     @staticmethod
     def display_signal_card(signal_result, current_price):
-        """Display trading signal in a nice card"""
+        """Display trading signal in a nice card - fixed width parameter"""
         score = signal_result['total_score']
         signal = signal_result['signal']
         
-        # Color coding
+        # Color coding for light theme
         if "STRONG BUY" in signal:
-            color = "#00ff00"
-            bg_color = "#1a3a1a"
+            color = "#00a800"
+            bg_color = "#e8f5e8"
             emoji = "🚀"
         elif "BUY" in signal:
-            color = "#90ff90"
-            bg_color = "#1a2a1a"
+            color = "#008800"
+            bg_color = "#f0f9f0"
             emoji = "📈"
         elif "SELL" in signal:
-            color = "#ff6666"
-            bg_color = "#3a1a1a"
+            color = "#cc0000"
+            bg_color = "#fee8e8"
             emoji = "📉"
         else:
-            color = "#ffff00"
-            bg_color = "#2a2a1a"
+            color = "#ff9900"
+            bg_color = "#fff4e6"
             emoji = "⏸️"
         
         st.markdown(f"""
@@ -122,15 +199,15 @@ class UIComponents:
             margin: 10px 0;
         ">
             <h2 style="color: {color}; margin: 0;">
-                {emoji} {signal} ({score}/100)
+                {emoji} {signal} ({score:.2f}/100)
             </h2>
-            <h4 style="color: white;">Current Price: Rp {current_price:,.2f}</h4>
+            <h4 style="color: #1a1a1a;">Current Price: Rp {current_price:,.2f}</h4>
         </div>
         """, unsafe_allow_html=True)
         
         # Display detailed signals
         with st.expander("📊 Detailed Signals", expanded=True):
-            cols = st.columns(4)
+            col1, col2, col3, col4 = st.columns(4)
             metrics = [
                 ("Trend", signal_result['trend_score']),
                 ("Momentum", signal_result['momentum_score']),
@@ -138,8 +215,14 @@ class UIComponents:
                 ("Volatility", signal_result['volatility_score'])
             ]
             
-            for col, (name, value) in zip(cols, metrics):
-                col.metric(name, f"{value}/100")
+            for col, (name, value) in zip([col1, col2, col3, col4], metrics):
+                if value >= 50:
+                    color = "green"
+                elif value <= -30:
+                    color = "red"
+                else:
+                    color = "orange"
+                col.markdown(f"**{name}**<br><span style='color:{color};font-size:24px;font-weight:bold;'>{value:.1f}</span>", unsafe_allow_html=True)
             
             st.write("**Key Signals:**")
             for sig in signal_result['signals']:
@@ -147,13 +230,15 @@ class UIComponents:
     
     @staticmethod
     def display_metrics(df):
-        """Display key metrics"""
+        """Display key metrics - fixed width parameter"""
         col1, col2, col3, col4 = st.columns(4)
         
         current_price = df['Close'].iloc[-1]
         price_change = ((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100
+        change_color = "green" if price_change >= 0 else "red"
+        change_sign = "+" if price_change >= 0 else ""
         
-        col1.metric("Current Price", f"Rp {current_price:,.2f}", f"{price_change:.2f}%")
-        col2.metric("RSI", f"{df['rsi'].iloc[-1]:.1f}")
-        col3.metric("Volume Ratio", f"{df['volume_ratio'].iloc[-1]:.2f}x")
-        col4.metric("ATR", f"Rp {df['atr'].iloc[-1]:.2f}")
+        col1.markdown(f"**Current Price**<br><span style='font-size:28px;'>Rp {current_price:,.0f}</span><br><span style='color:{change_color};'>{change_sign}{price_change:.2f}%</span>", unsafe_allow_html=True)
+        col2.markdown(f"**RSI (14)**<br><span style='font-size:28px;'>{df['rsi'].iloc[-1]:.1f}</span>", unsafe_allow_html=True)
+        col3.markdown(f"**Volume Ratio**<br><span style='font-size:28px;'>{df['volume_ratio'].iloc[-1]:.2f}x</span>", unsafe_allow_html=True)
+        col4.markdown(f"**ATR**<br><span style='font-size:28px;'>Rp {df['atr'].iloc[-1]:.0f}</span>", unsafe_allow_html=True)
