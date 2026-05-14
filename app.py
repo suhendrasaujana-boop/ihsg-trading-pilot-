@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from config import IHSG_STOCKS, TIMEFRAMES
 from data_fetcher import DataFetcher
@@ -16,17 +16,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
-st.markdown("""
-<style>
-    .stApp {
-        background-color: #0e1117;
-    }
-    .css-1d391kg {
-        background-color: #1a1c23;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Apply light theme
+UIComponents.apply_light_theme()
 
 # Title
 st.title("📈 IHSG Trading Decision Assistant")
@@ -44,18 +35,45 @@ with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/IDX_Logo.svg/1200px-IDX_Logo.svg.png", width=150)
     st.header("⚙️ Settings")
     
+    # Search/filter for stocks
+    st.subheader("🔍 Search Stock")
+    search_term = st.text_input("Type stock code or name", placeholder="Contoh: BBCA, BCA, Telkom...")
+    
+    # Filter stocks based on search
+    filtered_stocks = {}
+    if search_term:
+        search_lower = search_term.lower()
+        for code, name in IHSG_STOCKS.items():
+            if search_lower in code.lower() or search_lower in name.lower():
+                filtered_stocks[code] = name
+    else:
+        filtered_stocks = IHSG_STOCKS
+    
     # Stock selection
     selected_stock = st.selectbox(
         "Select Stock",
-        options=list(IHSG_STOCKS.keys()),
-        format_func=lambda x: f"{x.split('.')[0]} - {IHSG_STOCKS[x]}"
+        options=list(filtered_stocks.keys()),
+        format_func=lambda x: f"{x.split('.')[0]} - {filtered_stocks[x]}"
     )
+    
+    # Quick sector filters
+    st.subheader("🏭 Quick Filters")
+    sector_col1, sector_col2 = st.columns(2)
+    with sector_col1:
+        if st.button("🏦 Banking", use_container_width=True):
+            banking = ['BBCA.JK', 'BBRI.JK', 'BMRI.JK', 'BBNI.JK', 'BRIS.JK']
+            filtered_stocks = {k: v for k, v in IHSG_STOCKS.items() if k in banking}
+            st.rerun()
+    with sector_col2:
+        if st.button("⚡ Energy", use_container_width=True):
+            energy = ['ADRO.JK', 'BUMI.JK', 'ITMG.JK', 'PTBA.JK', 'BYAN.JK']
+            filtered_stocks = {k: v for k, v in IHSG_STOCKS.items() if k in energy}
+            st.rerun()
     
     # Timeframe selection
     selected_timeframe = st.selectbox(
         "Timeframe",
-        options=list(TIMEFRAMES.keys()),
-        format_func=lambda x: f"{x} - {TIMEFRAMES[x]}"
+        options=list(TIMEFRAMES.keys())
     )
     
     # Period
@@ -100,7 +118,8 @@ with col1:
         UIComponents.display_metrics(df)
         
         # Display chart
-        fig = UIComponents.create_candlestick_chart(df, f"{selected_stock} - {IHSG_STOCKS[selected_stock]}")
+        stock_name = IHSG_STOCKS.get(selected_stock, selected_stock)
+        fig = UIComponents.create_candlestick_chart(df, f"{selected_stock} - {stock_name}")
         st.plotly_chart(fig, use_container_width=True)
         
         # Display recent data
@@ -120,38 +139,55 @@ with col2:
     if ihsg_df is not None and not ihsg_df.empty:
         current_ihsg = ihsg_df['Close'].iloc[-1]
         ihsg_change = ((ihsg_df['Close'].iloc[-1] - ihsg_df['Close'].iloc[-2]) / ihsg_df['Close'].iloc[-2]) * 100
+        change_color = "🟢" if ihsg_change >= 0 else "🔴"
         
-        st.metric("IHSG Index", f"{current_ihsg:,.2f}", f"{ihsg_change:.2f}%")
+        st.markdown(f"""
+        <div style="background-color:#f0f0f0; padding:15px; border-radius:10px; text-align:center;">
+            <h3 style="margin:0;">IHSG Index</h3>
+            <h1 style="margin:0; color:#1a1a1a;">{current_ihsg:,.2f}</h1>
+            <p style="margin:0; color:{'green' if ihsg_change >= 0 else 'red'};">
+                {change_color} {ihsg_change:+.2f}%
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Watchlist
-    st.subheader("📋 Quick Watchlist")
-    watchlist = ['BBCA.JK', 'BBRI.JK', 'TLKM.JK']
+    # Top Movers (fake data for now - bisa ditambah real API nanti)
+    st.subheader("🔥 Top Gainers")
+    gainers = [
+        {"code": "BBCA", "change": "+2.3%", "price": "10,500"},
+        {"code": "BBRI", "change": "+1.8%", "price": "4,820"},
+        {"code": "TLKM", "change": "+1.2%", "price": "3,450"},
+    ]
+    for g in gainers:
+        st.markdown(f"**{g['code']}** - Rp {g['price']} <span style='color:green'>{g['change']}</span>", unsafe_allow_html=True)
     
-    for symbol in watchlist:
-        price = data_fetcher.get_current_price(symbol)
-        if price:
-            col_a, col_b = st.columns([3, 1])
-            with col_a:
-                st.write(f"**{symbol.split('.')[0]}**")
-            with col_b:
-                st.write(f"Rp {price:,.0f}")
+    st.markdown("---")
+    
+    st.subheader("📋 Top Losers")
+    losers = [
+        {"code": "BMRI", "change": "-1.5%", "price": "6,100"},
+        {"code": "ASII", "change": "-0.9%", "price": "4,750"},
+        {"code": "UNVR", "change": "-0.7%", "price": "2,850"},
+    ]
+    for l in losers:
+        st.markdown(f"**{l['code']}** - Rp {l['price']} <span style='color:red'>{l['change']}</span>", unsafe_allow_html=True)
     
     st.markdown("---")
     
     # Trading Tips
     st.subheader("💡 Trading Tips")
     st.info("""
-    ✅ Always use Stop Loss
-    ✅ Risk-Reward min 1:2
-    ✅ Wait for confirmation
+    ✅ Always use Stop Loss (2-3% dari entry)
+    ✅ Risk-Reward minimal 1:2
+    ✅ Wait for candle confirmation
     ✅ Check multiple timeframes
     """)
 
 # Footer
 st.markdown("---")
-st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Data from Yahoo Finance")
+st.caption(f"📊 Data from Yahoo Finance | Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | ⚠️ Not financial advice")
 
 # Auto-refresh
 if refresh:
