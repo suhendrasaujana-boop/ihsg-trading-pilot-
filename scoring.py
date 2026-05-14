@@ -1,341 +1,222 @@
-# Konfigurasi Saham IHSG (LENGKAP - Semua Saham yang Likuid)
+import pandas as pd
+import numpy as np
 
-IHSG_STOCKS = {
-    # === BANKING (Perbankan) ===
-    'BBCA.JK': 'Bank Central Asia',
-    'BBRI.JK': 'Bank Rakyat Indonesia',
-    'BMRI.JK': 'Bank Mandiri',
-    'BBNI.JK': 'Bank Negara Indonesia',
-    'BRIS.JK': 'Bank Syariah Indonesia',
-    'BNGA.JK': 'Bank CIMB Niaga',
-    'ARTO.JK': 'Bank Jago',
-    'AGRO.JK': 'Bank Raya Indonesia',
-    'BBKP.JK': 'Bank Bukopin',
-    'BDMN.JK': 'Bank Danamon',
-    'BJBR.JK': 'Bank Jabar Banten',
-    'BJTM.JK': 'Bank Jatim',
-    'BSIM.JK': 'Bank Sinarmas',
-    'BTPS.JK': 'Bank Tabungan Pensiunan',
-    'BANK.JK': 'Bank Aladin',
-    'AMAR.JK': 'Bank Amar Indonesia',
-    'INPC.JK': 'Bank Artha Graha',
-    'MAGP.JK': 'Bank Multiarta Sentosa',
-    'MAYA.JK': 'Bank Mayapada',
-    'MCOR.JK': 'Bank China Construction',
-    'NOBU.JK': 'Bank Nationalnobu',
-    'NISP.JK': 'Bank OCBC NISP',
-    'PNBN.JK': 'Bank Panin',
-    'PRDA.JK': 'Bank Proda',
-    'BVIC.JK': 'Bank Victoria',
+class ScoringEngine:
     
-    # === ENERGY & MINING (Energi & Pertambangan) ===
-    'ADRO.JK': 'Adaro Energy',
-    'BUMI.JK': 'Bumi Resources',
-    'ITMG.JK': 'Indo Tambangraya',
-    'PTBA.JK': 'Bukit Asam',
-    'BYAN.JK': 'Bayan Resources',
-    'MEDC.JK': 'Medco Energi',
-    'ELSA.JK': 'Elnusa',
-    'ENRG.JK': 'Energi Mega Persada',
-    'HRUM.JK': 'Harum Energy',
-    'INDY.JK': 'Indika Energy',
-    'KKGI.JK': 'Resource Alam Indonesia',
-    'MBAP.JK': 'Mitrabara Adiperdana',
-    'PKPK.JK': 'Perdana Karya Perkasa',
-    'SGER.JK': 'Sumber Global Energy',
-    'TOBA.JK': 'Toba Bara Sejahtra',
-    'AADI.JK': 'Apexindo Pratama Duta',
-    'ADMR.JK': 'Adaro Minerals',
-    'BREN.JK': 'Barito Renewables',
-    'BRMS.JK': 'Bumi Resources Minerals',
-    'DSSA.JK': 'Dian Swastatika Sentosa',
-    'GEMS.JK': 'Golden Energy Mines',
-    'INCO.JK': 'Vale Indonesia',
-    'MDKA.JK': 'Merdeka Copper Gold',
-    'MMMA.JK': 'Madison Industries',
-    'NICK.JK': 'Trimegah Bangun Persada',
-    'PGEO.JK': 'Pertamina Geothermal',
-    'PTRO.JK': 'Petrosea',
-    'RAJA.JK': 'Raja Putra Mandiri',
-    'RUIS.JK': 'Radiant Utama',
-    'SURE.JK': 'Suria Energi',
-    'TINS.JK': 'Timah',
-    'UGTR.JK': 'United Gold',
-    'ZINC.JK': 'Kapuas Prima Coal',
+    def __init__(self, weights=None):
+        self.weights = weights or {
+            'trend': 0.35,
+            'momentum': 0.30,
+            'volume': 0.20,
+            'volatility': 0.15
+        }
     
-    # === TELCO & TECHNOLOGY ===
-    'TLKM.JK': 'Telkom Indonesia',
-    'ISAT.JK': 'Indosat Ooredoo',
-    'EXCL.JK': 'XL Axiata',
-    'FREN.JK': 'Smartfren Telecom',
-    'MTDL.JK': 'Metrodata Electronics',
-    'GOTO.JK': 'GoTo Gojek Tokopedia',
-    'BUKA.JK': 'Bukalapak',
-    'BELI.JK': 'Global Digital Niaga',
-    'DIVA.JK': 'Distribusi Voucher Nusantara',
-    'WIFI.JK': 'Solusi Sinergi Digital',
+    def calculate_trend_score(self, df):
+        """Evaluate trend strength"""
+        score = 0
+        signals = []
+        
+        try:
+            # EMA alignment
+            if df['ema_20'].iloc[-1] > df['ema_50'].iloc[-1]:
+                score += 30
+                signals.append("EMA Bullish")
+            else:
+                score -= 20
+                signals.append("EMA Bearish")
+            
+            # MACD
+            if df['macd'].iloc[-1] > df['macd_signal'].iloc[-1]:
+                score += 25
+                signals.append("MACD Bullish")
+            else:
+                score -= 15
+                signals.append("MACD Bearish")
+            
+            # Supertrend
+            if df['supertrend_direction'].iloc[-1] == 1:
+                score += 25
+                signals.append("Supertrend Up")
+            else:
+                score -= 20
+                signals.append("Supertrend Down")
+            
+            # Price vs EMA 20
+            if df['Close'].iloc[-1] > df['ema_20'].iloc[-1]:
+                score += 20
+                signals.append("Above EMA20")
+            else:
+                score -= 15
+                signals.append("Below EMA20")
+                
+        except Exception as e:
+            print(f"Trend score error: {e}")
+        
+        return np.clip(score, -100, 100), signals
     
-    # === CONSUMER GOODS ===
-    'UNVR.JK': 'Unilever Indonesia',
-    'ICBP.JK': 'Indofood CBP',
-    'INDF.JK': 'Indofood Sukses',
-    'MYOR.JK': 'Mayora Indah',
-    'KLBF.JK': 'Kalbe Farma',
-    'HMSP.JK': 'H.M. Sampoerna',
-    'GGRM.JK': 'Gudang Garam',
-    'DVLA.JK': 'Darya-Varia',
-    'KAEF.JK': 'Kimia Farma',
-    'MERK.JK': 'Merck Indonesia',
-    'PYFA.JK': 'Pyridam Farma',
-    'SIDO.JK': 'Sido Muncul',
-    'TSPC.JK': 'Tempo Scan Pacific',
-    'ULTJ.JK': 'Ultra Jaya Milk',
-    'CINT.JK': 'Chitose Internasional',
-    'COCO.JK': 'Wahana Interfood',
-    'DLTA.JK': 'Delta Djakarta',
-    'MLBI.JK': 'Multi Bintang',
-    'SKBM.JK': 'Sekar Bumi',
-    'STTP.JK': 'Siantar Top',
-    'PSDN.JK': 'Prasidha Aneka',
-    'CEKA.JK': 'Wilmar Cahaya',
-    'CPIN.JK': 'Charoen Pokphand',
-    'JPFA.JK': 'Japfa Comfeed',
-    'LSIP.JK': 'PP London Sumatra',
-    'BISI.JK': 'BISI International',
-    'DSNG.JK': 'Dharma Satya Nusantara',
-    'GOOD.JK': 'Garudafood Putra Putri',
+    def calculate_momentum_score(self, df):
+        """Evaluate momentum"""
+        score = 0
+        signals = []
+        
+        try:
+            rsi = df['rsi'].iloc[-1]
+            
+            # RSI
+            if rsi < 30:
+                score += 40
+                signals.append(f"RSI Oversold ({rsi:.1f})")
+            elif rsi > 70:
+                score -= 40
+                signals.append(f"RSI Overbought ({rsi:.1f})")
+            elif 40 <= rsi <= 60:
+                score += 10
+                signals.append("RSI Neutral")
+            
+            # Price momentum (last 5 bars)
+            if len(df) >= 6:
+                price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-6]) / df['Close'].iloc[-6] * 100
+                if price_change > 2:
+                    score += 30
+                    signals.append(f"Strong Momentum (+{price_change:.1f}%)")
+                elif price_change < -2:
+                    score -= 30
+                    signals.append(f"Strong Down Momentum ({price_change:.1f}%)")
+            
+            # MACD cross
+            if len(df) >= 2:
+                if df['macd_diff'].iloc[-1] > 0 and df['macd_diff'].iloc[-2] <= 0:
+                    score += 30
+                    signals.append("MACD Bullish Cross")
+                elif df['macd_diff'].iloc[-1] < 0 and df['macd_diff'].iloc[-2] >= 0:
+                    score -= 30
+                    signals.append("MACD Bearish Cross")
+                    
+        except Exception as e:
+            print(f"Momentum score error: {e}")
+        
+        return np.clip(score, -100, 100), signals
     
-    # === AUTOMOTIVE & INDUSTRIAL ===
-    'ASII.JK': 'Astra International',
-    'AUTO.JK': 'Astra Otoparts',
-    'GDYR.JK': 'Goodyear Indonesia',
-    'INDS.JK': 'Indospring',
-    'PRAS.JK': 'Prima Alloy Steel',
-    'GJTL.JK': 'Gajah Tunggal',
-    'HRX.JK': 'Habco Transmaritima',
-    'IMAS.JK': 'Indomobil Sukses',
-    'LPIN.JK': 'Lautan Luas',
-    'NIPS.JK': 'Nipress',
-    'SMSM.JK': 'Selamat Sempurna',
+    def calculate_volume_score(self, df):
+        """Evaluate volume pattern"""
+        score = 0
+        signals = []
+        
+        try:
+            volume_ratio = df['volume_ratio'].iloc[-1]
+            
+            # Volume spike
+            if volume_ratio > 1.5:
+                # Check price direction
+                if df['Close'].iloc[-1] > df['Close'].iloc[-2]:
+                    score += 40
+                    signals.append(f"High Volume Up ({volume_ratio:.1f}x)")
+                else:
+                    score -= 30
+                    signals.append(f"High Volume Down ({volume_ratio:.1f}x)")
+            elif volume_ratio < 0.5:
+                signals.append("Low Volume")
+            
+            # Volume trend
+            if len(df) >= 20:
+                volume_trend = (df['Volume'].iloc[-5:].mean() / df['Volume'].iloc[-20:].mean())
+                if volume_trend > 1.2:
+                    score += 30
+                    signals.append("Increasing Volume Trend")
+                    
+        except Exception as e:
+            print(f"Volume score error: {e}")
+        
+        return np.clip(score, -100, 100), signals
     
-    # === PROPERTY & REAL ESTATE ===
-    'BSDE.JK': 'Bumi Serpong Damai',
-    'CTRA.JK': 'Ciputra Development',
-    'PWON.JK': 'Pakuwon Jati',
-    'DILD.JK': 'Intiland Development',
-    'GPRA.JK': 'Perdana Gapuraprima',
-    'JRPT.JK': 'Jaya Real Property',
-    'KIJA.JK': 'Kawasan Industri Jababeka',
-    'LPCK.JK': 'Lippo Cikarang',
-    'LPKR.JK': 'Lippo Karawaci',
-    'MDLN.JK': 'Modernland Realty',
-    'PLIN.JK': 'Plaza Indonesia',
-    'SMRA.JK': 'Summarecon Agung',
-    'WIKA.JK': 'Wijaya Karya',
-    'BKSL.JK': 'Sentul City',
-    'CBDK.JK': 'Bangun Kosambi Sukses',
-    'BAPA.JK': 'Bekasi Asri',
-    'BEST.JK': 'Bekasi Fajar',
-    'BIKA.JK': 'Bintraco Dharma',
-    'CITY.JK': 'MNC Land',
-    'DMAS.JK': 'Puradelta Lestari',
-    'DUTI.JK': 'Duta Pertiwi',
-    'GWSA.JK': 'Greenwood Sejahtera',
-    'KPIG.JK': 'MNC Land',
-    'LODA.JK': 'Lautan Ozon',
-    'MKPI.JK': 'Metropolitan Kentjana',
-    'MORA.JK': 'Mora Telematika',
-    'MTLA.JK': 'Metropolitan Land',
-    'PANI.JK': 'Pantai Indah Kapuk',
-    'RISE.JK': 'Jaya Sukses',
-    'RODA.JK': 'Pikko Land',
-    'SCBD.JK': 'Danayasa Arthatama',
-    'SPTO.JK': 'Surya Pertiwi',
-    'SSIA.JK': 'Surya Semesta',
-    'SUGI.JK': 'Sugih Energy',
-    'TARA.JK': 'Agung Podomoro Land',
-    'URBN.JK': 'Pakuan',
+    def calculate_volatility_score(self, df):
+        """Evaluate volatility conditions"""
+        score = 0
+        signals = []
+        
+        try:
+            # Bollinger Bands position
+            current_price = df['Close'].iloc[-1]
+            bb_lower = df['bb_lower'].iloc[-1]
+            bb_upper = df['bb_upper'].iloc[-1]
+            bb_middle = df['bb_middle'].iloc[-1]
+            
+            bb_width = (bb_upper - bb_lower) / bb_middle if bb_middle != 0 else 0
+            
+            if current_price <= bb_lower:
+                score += 40
+                signals.append("At Lower BB (Potential Bounce)")
+            elif current_price >= bb_upper:
+                score -= 30
+                signals.append("At Upper BB (Potential Pullback)")
+            
+            # Squeeze detection
+            if bb_width < 0.05:  # Narrow bands
+                signals.append("BB Squeeze (Volatility Coming)")
+                score += 20
+            
+            # ATR trend
+            if len(df) >= 6:
+                atr_change = (df['atr'].iloc[-1] - df['atr'].iloc[-6]) / df['atr'].iloc[-6] * 100 if df['atr'].iloc[-6] != 0 else 0
+                if atr_change > 20:
+                    signals.append("Increasing Volatility")
+                    
+        except Exception as e:
+            print(f"Volatility score error: {e}")
+        
+        return np.clip(score, -100, 100), signals
     
-    # === INFRASTRUCTURE & TRANSPORTATION ===
-    'ADHI.JK': 'Adhi Karya',
-    'PTPP.JK': 'PP Properti',
-    'WSKT.JK': 'Waskita Karya',
-    'JSMR.JK': 'Jasa Marga',
-    'PGAS.JK': 'Perusahaan Gas Negara',
-    'TOWR.JK': 'Sarana Menara Nusantara',
-    'TBIG.JK': 'Tower Bersama',
-    'BIRD.JK': 'Blue Bird',
-    'CMNP.JK': 'Citra Marga Nusaphala',
-    'GIAA.JK': 'Garuda Indonesia',
-    'SMDR.JK': 'Samudera Indonesia',
-    'TMAS.JK': 'Temas Line',
-    'AIRA.JK': 'AirAsia Indonesia',
-    'ASSA.JK': 'Adi Sarana Armada',
-    'BPTR.JK': 'Batavia Prosperindo',
-    'CMPP.JK': 'Century Park',
-    'IATA.JK': 'Indonesia Transport',
-    'LRNA.JK': 'Lintas Marga Sedaya',
-    'MIRA.JK': 'Mitra International',
-    'MPMX.JK': 'Mitra Pinasthika',
-    'NELY.JK': 'Pelayaran Nelly',
-    'RIGS.JK': 'Rig Tenders',
-    'SDMU.JK': 'Sidomulyo',
-    'TPMA.JK': 'Trans Power Marine',
-    'TRAM.JK': 'Trada Maritime',
-    
-    # === RETAIL & TRADE ===
-    'ACES.JK': 'Ace Hardware',
-    'ERAA.JK': 'Erajaya Swasembada',
-    'MAPI.JK': 'Mitra Adiperkasa',
-    'AMRT.JK': 'Sumber Alfaria Trijaya',
-    'RALS.JK': 'Ramayana Lestari',
-    'LPPF.JK': 'Matahari Department Store',
-    'MAP.JK': 'Mitra Adiperkasa',
-    'SONA.JK': 'Sona Topas',
-    'MIDI.JK': 'Midi Utama',
-    'MPPA.JK': 'Matahari Putra Prima',
-    'TRIO.JK': 'Trikomsel Oke',
-    'WOMF.JK': 'Wahana Ottomitra',
-    
-    # === CEMENT & BUILDING MATERIALS ===
-    'INTP.JK': 'Indocement Tunggal',
-    'SMCB.JK': 'Semen Indonesia',
-    'SMBR.JK': 'Semen Baturaja',
-    'ARCI.JK': 'Archi Indonesia',
-    'BATA.JK': 'Sepatu Bata',
-    'INRU.JK': 'Intikeramik',
-    'KICI.JK': 'Kedaung Indah',
-    'KRAH.JK': 'Grand Kartech',
-    'LION.JK': 'Lion Metal',
-    'TOTO.JK': 'Surya Toto',
-    
-    # === AGRICULTURE & PLANTATION ===
-    'AALI.JK': 'Astra Agro Lestari',
-    'SGRO.JK': 'Sampoerna Agro',
-    'SMAR.JK': 'Smart',
-    'UNSP.JK': 'Bakrie Sumatera',
-    'BTEK.JK': 'Bumi Teknokultura',
-    'BWPT.JK': 'Eagle High Plantations',
-    'GOLL.JK': 'Golden Plantation',
-    'GULA.JK': 'Sugar Group',
-    'JAWA.JK': 'Jawa Plantation',
-    'MGRO.JK': 'Mahkota Group',
-    'SIMP.JK': 'Salim Ivomas',
-    'SSMS.JK': 'Sawit Sumbermas',
-    'TAPG.JK': 'Triputra Agro Persada',
-    'TEBE.JK': 'Tebar Asia',
-    'TRGU.JK': 'Tunas Baru Lampung',
-    
-    # === CYCLICALS ===
-    'ANTM.JK': 'Aneka Tambang',
-    'BRPT.JK': 'Barito Pacific',
-    'TPIA.JK': 'Chandra Asri Pacific',
-    'AKRA.JK': 'AKR Corporindo',
-    'AMMN.JK': 'Amman Mineral',
-    'APLN.JK': 'Agung Podomoro Land',
-    'ARNA.JK': 'Arwana Citramulia',
-    'BUDI.JK': 'Budi Starch',
-    'CBMF.JK': 'Catur Sentosa Adiprana',
-    'CEMENT.JK': 'Semen Indonesia',
-    'CTBN.JK': 'Citra Tubindo',
-    'DEWA.JK': 'Darma Henwa',
-    'EKAD.JK': 'Eka Dharma',
-    'EMTK.JK': 'Elang Mahkota Teknologi',
-    'ENVY.JK': 'Envy Technologies',
-    'ESSA.JK': 'Surya Esa Perkasa',
-    'FAPA.JK': 'Farma Indonesia',
-    'HOKI.JK': 'Buyung Poetra Sembada',
-    'ICBP.JK': 'Indofood CBP',
-    'IMPC.JK': 'Impack Pratama',
-    'INKP.JK': 'Indah Kiat Pulp',
-    'INTA.JK': 'Intraco Penta',
-    'IPCC.JK': 'Indonesia Kendaraan',
-    'ISSP.JK': 'Steel Pipe Industry',
-    'JECC.JK': 'Jembo Cable',
-    'KBLM.JK': 'Kabelindo Murni',
-    'KDSI.JK': 'Kedawung Setia',
-    'KEEN.JK': 'Keen Medika',
-    'KINO.JK': 'Kino Indonesia',
-    'KOBX.JK': 'Kobra Karya',
-    'LCGP.JK': 'Eureka Prima Jakarta',
-    'LMSH.JK': 'Lionmesh Prima',
-    'MASA.JK': 'Multistrada Arah',
-    'MBMA.JK': 'Merdeka Battery Materials',
-    'MDIA.JK': 'Intermedia Capital',
-    'MEGA.JK': 'Mega Perintis',
-    'MITI.JK': 'Mitra Investindo',
-    'MKNT.JK': 'Mitra Komunikasi',
-    'MLPT.JK': 'Multipolar',
-    'MSIN.JK': 'MNC Digital',
-    'MTFN.JK': 'Mitra Tirta',
-    'NCKL.JK': 'Trimegah Bangun Persada',
-    'NETV.JK': 'Net Visi Media',
-    'NFCX.JK': 'NFC Indonesia',
-    'OMRE.JK': 'Omni Inovasi',
-    'PBRX.JK': 'Pan Brothers',
-    'PDES.JK': 'Destinasi Tirta Nusantara',
-    'PEGE.JK': 'Panca Global',
-    'POWR.JK': 'Cikarang Listrindo',
-    'PPRE.JK': 'PP Presisi',
-    'PURE.JK': 'Trinitan Metals',
-    'RDTX.JK': 'Roda Vivatex',
-    'REAL.JK': 'Repower Asia',
-    'RGAS.JK': 'Bukaka Teknik',
-    'SAME.JK': 'Sarana Meditama',
-    'SCCO.JK': 'Sinar Cipta',
-    'SCMA.JK': 'Surya Citra Media',
-    'SDPC.JK': 'Millennium Pharmacon',
-    'SFAN.JK': 'Surya Fajar',
-    'SHIP.JK': 'Sillo Maritime',
-    'SIAP.JK': 'Sekawan Intipratama',
-    'SICO.JK': 'Sigma Komputer',
-    'SILO.JK': 'Siloam Hospitals',
-    'SKLT.JK': 'Sekar Laut',
-    'SKRN.JK': 'Superkrane',
-    'SMKL.JK': 'Saturn Metal',
-    'SMRU.JK': 'SMR Utama',
-    'SOSS.JK': 'Sharma Indo',
-    'SRIL.JK': 'Sri Rejeki',
-    'SSIA.JK': 'Surya Semesta',
-    'STAR.JK': 'Buana Artha',
-    'SUPR.JK': 'Solusi Tunas',
-    'SURY.JK': 'Surya Semesta',
-    'TALF.JK': 'Tunas Alfin',
-    'TAMU.JK': 'Taman Wisata',
-    'TCPI.JK': 'Transcoal Pacific',
-    'TIFA.JK': 'Tifa Finance',
-    'TIRA.JK': 'Tira Austenite',
-    'TKIM.JK': 'Pabrik Kertas Tjiwi',
-    'TMAS.JK': 'Temas Line',
-    'TMPO.JK': 'Tempo Inti Media',
-    'TOOL.JK': 'Roda Tiga',
-    'TRIS.JK': 'Trisula Textile',
-    'TRUK.JK': 'Guna Timur Raya',
-    'VICO.JK': 'Victoria Investama',
-    'VKTR.JK': 'VKTR Teknologi',
-    'VRNA.JK': 'Varna Indonesia',
-    'WICO.JK': 'Wicaksana Overseas',
-    'WIIM.JK': 'Wismilak Inti',
-    'WMPP.JK': 'WMPP',
-    'YELO.JK': 'Yelo Integra',
-    'ZINC.JK': 'Kapuas Prima Coal',
-}
-
-# Timeframes untuk multi-timeframe analysis
-TIMEFRAMES = {
-    '5 Menit': '5m',
-    '15 Menit': '15m', 
-    '30 Menit': '30m',
-    '1 Jam': '1h',
-    '4 Jam': '4h',
-    '1 Hari': '1d',
-    '1 Minggu': '1wk'
-}
-
-# Scoring weights
-SCORING_WEIGHTS = {
-    'trend': 0.35,
-    'momentum': 0.30,
-    'volume': 0.20,
-    'volatility': 0.15
-}
+    def calculate_total_score(self, df):
+        """Calculate total weighted score"""
+        try:
+            trend_score, trend_signals = self.calculate_trend_score(df)
+            momentum_score, momentum_signals = self.calculate_momentum_score(df)
+            volume_score, volume_signals = self.calculate_volume_score(df)
+            volatility_score, volatility_signals = self.calculate_volatility_score(df)
+            
+            total_score = (
+                trend_score * self.weights['trend'] +
+                momentum_score * self.weights['momentum'] +
+                volume_score * self.weights['volume'] +
+                volatility_score * self.weights['volatility']
+            )
+            
+            all_signals = trend_signals + momentum_signals + volume_signals + volatility_signals
+            
+            # Determine signal
+            if total_score >= 70:
+                signal = "STRONG BUY 🚀"
+            elif total_score >= 50:
+                signal = "BUY 📈"
+            elif total_score >= 30:
+                signal = "WATCH / ACCUMULATE ⏸️"
+            elif total_score >= 10:
+                signal = "NEUTRAL"
+            elif total_score >= -10:
+                signal = "WATCH / DISTRIBUTE"
+            elif total_score >= -30:
+                signal = "SELL 📉"
+            else:
+                signal = "STRONG SELL 🔻"
+            
+            return {
+                'total_score': round(total_score, 2),
+                'trend_score': round(trend_score, 2),
+                'momentum_score': round(momentum_score, 2),
+                'volume_score': round(volume_score, 2),
+                'volatility_score': round(volatility_score, 2),
+                'signal': signal,
+                'signals': all_signals[:8]  # Top 8 signals
+            }
+            
+        except Exception as e:
+            print(f"Total score error: {e}")
+            return {
+                'total_score': 0,
+                'trend_score': 0,
+                'momentum_score': 0,
+                'volume_score': 0,
+                'volatility_score': 0,
+                'signal': 'ERROR',
+                'signals': ['Error calculating scores']
+            }
