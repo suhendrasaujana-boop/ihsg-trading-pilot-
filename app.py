@@ -30,6 +30,10 @@ def init_components():
 
 data_fetcher, scoring_engine = init_components()
 
+# SESSION STATE UNTUK FILTER SEKTOR
+if 'active_sector_filter' not in st.session_state:
+    st.session_state.active_sector_filter = []
+
 # ============================================
 # =============== SIDEBAR ====================
 # ============================================
@@ -41,13 +45,18 @@ with st.sidebar:
     st.subheader("🔍 Search Stock")
     search_term = st.text_input("Search by code or name", placeholder="BBCA, BCA, Telkom...")
     
-    # Auto-filter based on search
+    # Logika Filter (Search + Sektor)
     if search_term:
         search_lower = search_term.lower()
-        filtered_stocks = {}
-        for code, name in IHSG_STOCKS.items():
-            if search_lower in code.lower() or search_lower in name.lower():
-                filtered_stocks[code] = name
+        filtered_stocks = {
+            code: name for code, name in IHSG_STOCKS.items() 
+            if search_lower in code.lower() or search_lower in name.lower()
+        }
+    elif st.session_state.active_sector_filter:
+        filtered_stocks = {
+            code: name for code, name in IHSG_STOCKS.items() 
+            if code.replace('.JK', '') in st.session_state.active_sector_filter
+        }
     else:
         filtered_stocks = IHSG_STOCKS
     
@@ -68,7 +77,6 @@ with st.sidebar:
     # ========== SECTOR QUICK FILTER ==========
     st.subheader("🏭 Sector Quick Filter")
     
-    # Group stocks by sector
     sectors = {
         '🏦 Banking': ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BNGA', 'ARTO'],
         '⚡ Energy': ['ADRO', 'BUMI', 'ITMG', 'PTBA', 'BYAN', 'MDKA', 'ANTM', 'INCO', 'TINS'],
@@ -86,15 +94,13 @@ with st.sidebar:
     for i, (sector_name, codes) in enumerate(sectors_list):
         col = sector_col1 if i % 2 == 0 else sector_col2
         if col.button(sector_name, use_container_width=True, key=f"sector_{i}"):
-            # Filter stocks in this sector
-            filtered = {}
-            for code, name in IHSG_STOCKS.items():
-                code_base = code.replace('.JK', '')
-                if code_base in codes:
-                    filtered[code] = name
-            if filtered:
-                filtered_stocks = filtered
-                st.rerun()
+            st.session_state.active_sector_filter = codes
+            st.rerun()
+            
+    if st.session_state.active_sector_filter:
+        if st.button("❌ Reset Filter Sektor", use_container_width=True):
+            st.session_state.active_sector_filter = []
+            st.rerun()
     
     # ========== TIMEFRAME ==========
     selected_timeframe = st.selectbox(
@@ -117,46 +123,40 @@ with st.sidebar:
     3. Real-time analysis
     """)
     
-    # ========== SHOW TOTAL STOCKS ==========
     st.caption(f"📈 Total Stocks Available: {len(IHSG_STOCKS)}")
     st.caption("🔄 Data auto-sync dari IDX setiap 24 jam")
     
-    refresh = st.button("🔄 Refresh Data", use_container_width=True)
+    # TOMBOL REFRESH YANG SUDAH DIPERBAIKI
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
 
 # ============================================
 # =============== MAIN CONTENT ===============
 # ============================================
 
-if selected_stock:  # Hanya jalan jika ada saham yang dipilih
+if selected_stock:
     col1, col2 = st.columns([2, 1])
 
     with col1:
         st.subheader("📊 Technical Analysis")
         
-        # Fetch data
         interval = TIMEFRAMES[selected_timeframe]
         df = data_fetcher.get_stock_data(selected_stock, period=period, interval=interval)
         
         if df is not None and not df.empty:
-            # Calculate indicators
             df = TechnicalIndicators.calculate_all(df)
-            
-            # Calculate scores
             signal_result = scoring_engine.calculate_total_score(df)
             
-            # Display signal
             current_price = df['Close'].iloc[-1]
             UIComponents.display_signal_card(signal_result, current_price)
-            
-            # Display metrics
             UIComponents.display_metrics(df)
             
-            # Display chart
             stock_name = IHSG_STOCKS.get(selected_stock, selected_stock)
             fig = UIComponents.create_candlestick_chart(df, f"{selected_stock} - {stock_name}")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Display recent data
             with st.expander("📋 Recent Data"):
                 recent_data = df[['Open', 'High', 'Low', 'Close', 'Volume', 'rsi', 'macd_diff']].tail(10)
                 recent_data.index = recent_data.index.strftime('%Y-%m-%d %H:%M')
@@ -168,7 +168,6 @@ if selected_stock:  # Hanya jalan jika ada saham yang dipilih
     with col2:
         st.subheader("📈 Market Overview")
         
-        # IHSG Index
         ihsg_df = data_fetcher.get_ihsg_index()
         if ihsg_df is not None and not ihsg_df.empty:
             current_ihsg = ihsg_df['Close'].iloc[-1]
@@ -187,7 +186,6 @@ if selected_stock:  # Hanya jalan jika ada saham yang dipilih
         
         st.markdown("---")
         
-        # Top Movers
         st.subheader("🔥 Top Gainers")
         gainers = [
             {"code": "BBCA", "change": "+2.3%", "price": "10,500"},
@@ -210,7 +208,6 @@ if selected_stock:  # Hanya jalan jika ada saham yang dipilih
         
         st.markdown("---")
         
-        # Trading Tips
         st.subheader("💡 Trading Tips")
         st.info("""
         ✅ Always use Stop Loss (2-3% dari entry)
@@ -222,7 +219,3 @@ if selected_stock:  # Hanya jalan jika ada saham yang dipilih
 # Footer
 st.markdown("---")
 st.caption(f"📊 Data from Yahoo Finance | Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | ⚠️ Not financial advice")
-
-# Auto-refresh
-if refresh:
-    st.rerun()
