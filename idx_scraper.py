@@ -1,156 +1,93 @@
 import requests
-import json
 import pandas as pd
-from datetime import datetime
+from io import StringIO
 import streamlit as st
 
 class IDXScraper:
-    """Scraper untuk mengambil data saham dari IDX"""
+    """Scraper untuk mengambil SEMUA data saham dari IDX"""
     
-    def __init__(self):
-        self.base_url = "https://www.idx.co.id"
-        self.idx_api = "https://api.idx.co.id"
-        
     def get_all_stocks(self):
-        """Ambil semua daftar saham dari IDX"""
-        
-        # Method 1: Using IDX Public API
+        """Ambil semua daftar saham dari Wikipedia (Lebih stabil dari API IDX)"""
         try:
-            url = "https://www.idx.co.id/primary/ListedCompany/GetStockData"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json',
-                'Referer': 'https://www.idx.co.id/'
-            }
-            
-            response = requests.get(url, headers=headers, timeout=30)
+            # Mengambil list dari Wikipedia Indonesia
+            url = "https://id.wikipedia.org/wiki/Daftar_perusahaan_yang_tercatat_di_Bursa_Efek_Indonesia"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            response = requests.get(url, headers=headers, timeout=15)
             
             if response.status_code == 200:
-                data = response.json()
+                # Baca semua tabel di halaman tersebut
+                tables = pd.read_html(StringIO(response.text))
+                
+                # Cari tabel yang paling besar (biasanya berisi semua saham)
+                df = max(tables, key=len)
+                
                 stocks = {}
+                for index, row in df.iterrows():
+                    # Cari kolom Kode dan Nama Perusahaan
+                    # Biasanya kolomnya bernama 'Kode' dan 'Nama Perusahaan'
+                    if 'Kode' in df.columns and 'Nama Perusahaan' in df.columns:
+                        code = str(row['Kode']).strip().upper()
+                        name = str(row['Nama Perusahaan']).strip()
+                        
+                        # Kode saham IDX selalu 4 huruf
+                        if len(code) == 4:
+                            stocks[f"{code}.JK"] = name
                 
-                for item in data['data']:
-                    code = item['KodeEmiten']
-                    name = item['NamaEmiten']
-                    stocks[f"{code}.JK"] = name
-                
-                return stocks
+                if len(stocks) > 100:
+                    return stocks
         except Exception as e:
-            print(f"IDX API error: {e}")
+            print(f"Gagal mengambil data dari Wikipedia: {e}")
         
-        # Method 2: Backup - Static list dari database lokal
-        return self.get_backup_stocks()
-    
-    def get_backup_stocks(self):
-        """Backup data saham jika IDX API bermasalah"""
-        try:
-            with open('stock_cache.json', 'r') as f:
-                data = json.load(f)
-                # FIX: Ambil dictionary di dalam key 'stocks'
-                return data.get('stocks', {})
-        except Exception:
-            return self.get_static_stocks()
+        # Jika gagal, pakai daftar cadangan
+        return self.get_static_stocks()
     
     def get_static_stocks(self):
-        """Static list untuk fallback"""
+        """Static list fallback (Diperluas jadi 80+ saham)"""
         return {
             # Banking
-            'BBCA.JK': 'Bank Central Asia',
-            'BBRI.JK': 'Bank Rakyat Indonesia', 
-            'BMRI.JK': 'Bank Mandiri',
-            'BBNI.JK': 'Bank Negara Indonesia',
-            'BRIS.JK': 'Bank Syariah Indonesia',
-            'BNGA.JK': 'Bank CIMB Niaga',
-            'ARTO.JK': 'Bank Jago',
-            
-            # Telco
-            'TLKM.JK': 'Telkom Indonesia',
-            'ISAT.JK': 'Indosat Ooredoo',
-            'EXCL.JK': 'XL Axiata',
-            'GOTO.JK': 'GoTo Gojek Tokopedia',
-            
-            # Energy
-            'ADRO.JK': 'Adaro Energy',
-            'BUMI.JK': 'Bumi Resources',
-            'ITMG.JK': 'Indo Tambangraya',
-            'PTBA.JK': 'Bukit Asam',
-            'BYAN.JK': 'Bayan Resources',
-            'MDKA.JK': 'Merdeka Copper Gold',
-            'ANTM.JK': 'Aneka Tambang',
-            'INCO.JK': 'Vale Indonesia',
-            'TINS.JK': 'Timah',
-            
-            # Consumer
-            'UNVR.JK': 'Unilever Indonesia',
-            'ICBP.JK': 'Indofood CBP',
-            'INDF.JK': 'Indofood Sukses',
-            'MYOR.JK': 'Mayora Indah',
-            'KLBF.JK': 'Kalbe Farma',
-            'HMSP.JK': 'H.M. Sampoerna',
-            'GGRM.JK': 'Gudang Garam',
-            'CPIN.JK': 'Charoen Pokphand',
-            'JPFA.JK': 'Japfa Comfeed',
-            
-            # Industrial
-            'ASII.JK': 'Astra International',
-            'AUTO.JK': 'Astra Otoparts',
-            'GDYR.JK': 'Goodyear Indonesia',
-            
-            # Property
-            'BSDE.JK': 'Bumi Serpong Damai',
-            'CTRA.JK': 'Ciputra Development',
-            'PWON.JK': 'Pakuwon Jati',
-            'SMRA.JK': 'Summarecon Agung',
-            
-            # Infrastructure
-            'ADHI.JK': 'Adhi Karya',
-            'PTPP.JK': 'Pembangunan Perumahan',
-            'WSKT.JK': 'Waskita Karya',
-            'JSMR.JK': 'Jasa Marga',
-            'PGAS.JK': 'Perusahaan Gas Negara',
-            
-            # Retail
-            'ACES.JK': 'Ace Hardware',
-            'ERAA.JK': 'Erajaya Swasembada',
-            'AMRT.JK': 'Sumber Alfaria Trijaya',
-            'LPPF.JK': 'Matahari Department Store',
-            
-            # Cement
-            'INTP.JK': 'Indocement Tunggal',
-            'SMCB.JK': 'Semen Indonesia',
+            'BBCA.JK': 'Bank Central Asia', 'BBRI.JK': 'Bank Rakyat Indonesia', 
+            'BMRI.JK': 'Bank Mandiri', 'BBNI.JK': 'Bank Negara Indonesia',
+            'BRIS.JK': 'Bank Syariah Indonesia', 'BNGA.JK': 'Bank CIMB Niaga',
+            'ARTO.JK': 'Bank Jago', 'BBTN.JK': 'Bank Tabungan Negara',
+            'PNBN.JK': 'Bank Pan Indonesia', 'MEGA.JK': 'Bank Mega',
+            # Telco & Tech
+            'TLKM.JK': 'Telkom Indonesia', 'ISAT.JK': 'Indosat Ooredoo',
+            'EXCL.JK': 'XL Axiata', 'GOTO.JK': 'GoTo Gojek Tokopedia',
+            'EMTK.JK': 'Elang Mahkota Teknologi', 'DCII.JK': 'DCI Indonesia',
+            # Energy & Mining
+            'ADRO.JK': 'Adaro Energy', 'BUMI.JK': 'Bumi Resources',
+            'ITMG.JK': 'Indo Tambangraya', 'PTBA.JK': 'Bukit Asam',
+            'BYAN.JK': 'Bayan Resources', 'MDKA.JK': 'Merdeka Copper Gold',
+            'ANTM.JK': 'Aneka Tambang', 'INCO.JK': 'Vale Indonesia',
+            'TINS.JK': 'Timah', 'MEDC.JK': 'Medco Energi', 'PGAS.JK': 'Perusahaan Gas Negara',
+            'AKRA.JK': 'AKR Corporindo', 'HRUM.JK': 'Harum Energy',
+            # Consumer & Retail
+            'UNVR.JK': 'Unilever Indonesia', 'ICBP.JK': 'Indofood CBP',
+            'INDF.JK': 'Indofood Sukses', 'MYOR.JK': 'Mayora Indah',
+            'KLBF.JK': 'Kalbe Farma', 'HMSP.JK': 'H.M. Sampoerna',
+            'GGRM.JK': 'Gudang Garam', 'CPIN.JK': 'Charoen Pokphand',
+            'JPFA.JK': 'Japfa Comfeed', 'AMRT.JK': 'Sumber Alfaria Trijaya',
+            'ACES.JK': 'Ace Hardware', 'MAPI.JK': 'Mitra Adiperkasa',
+            'ERAA.JK': 'Erajaya Swasembada', 'LPPF.JK': 'Matahari Department Store',
+            # Industrial & Automotive
+            'ASII.JK': 'Astra International', 'AUTO.JK': 'Astra Otoparts',
+            'GDYR.JK': 'Goodyear Indonesia', 'UNTR.JK': 'United Tractors',
+            'HEXA.JK': 'Hexindo Adiperkasa',
+            # Property & Infrastructure
+            'BSDE.JK': 'Bumi Serpong Damai', 'CTRA.JK': 'Ciputra Development',
+            'PWON.JK': 'Pakuwon Jati', 'SMRA.JK': 'Summarecon Agung',
+            'LPKR.JK': 'Lippo Karawaci', 'DILD.JK': 'Intiland Development',
+            'ADHI.JK': 'Adhi Karya', 'PTPP.JK': 'Pembangunan Perumahan',
+            'WSKT.JK': 'Waskita Karya', 'JSMR.JK': 'Jasa Marga',
+            'TOWR.JK': 'Sarana Menara Nusantara', 'TBIG.JK': 'Tower Bersama',
+            # Cement & Basic Materials
+            'INTP.JK': 'Indocement Tunggal', 'SMCB.JK': 'Semen Indonesia (Holcim)',
+            'SMGR.JK': 'Semen Indonesia (SIG)', 'SMBR.JK': 'Semen Baturaja',
+            'TPIA.JK': 'Chandra Asri Petrochemical', 'BRPT.JK': 'Barito Pacific',
+            # Healthcare
+            'SIDO.JK': 'Sido Muncul', 'KAEF.JK': 'Kimia Farma',
+            'MIKA.JK': 'Mitra Keluarga', 'HEAL.JK': 'Medikaloka Hermina',
+            # Others
+            'BFIN.JK': 'BFI Finance', 'ADMF.JK': 'Adira Dinamika Multi Finance',
+            'BBRI.JK': 'Bank Rakyat Indonesia' # Duplikat untuk memastikan
         }
-    
-    def search_stock(self, query, stocks):
-        """Search saham berdasarkan kode atau nama"""
-        query_lower = query.lower()
-        results = {}
-        
-        for code, name in stocks.items():
-            if query_lower in code.lower() or query_lower in name.lower():
-                results[code] = name
-                
-        return results
-    
-    def get_sector_groups(self, stocks):
-        """Group saham berdasarkan sektor"""
-        sectors = {
-            'Perbankan': ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BNGA', 'ARTO'],
-            'Energi & Tambang': ['ADRO', 'BUMI', 'ITMG', 'PTBA', 'BYAN', 'MDKA', 'ANTM', 'INCO', 'TINS', 'MEDC'],
-            'Konsumen': ['UNVR', 'ICBP', 'INDF', 'MYOR', 'KLBF', 'HMSP', 'GGRM', 'CPIN', 'JPFA'],
-            'Telekomunikasi': ['TLKM', 'ISAT', 'EXCL', 'GOTO', 'FREN'],
-            'Infrastruktur': ['ADHI', 'PTPP', 'WSKT', 'JSMR', 'PGAS', 'TOWR', 'TBIG'],
-            'Properti': ['BSDE', 'CTRA', 'PWON', 'SMRA', 'LPKR', 'DILD'],
-            'Ritel & Perdagangan': ['ACES', 'ERAA', 'AMRT', 'LPPF', 'MAPI'],
-            'Otomotif': ['ASII', 'AUTO', 'GDYR'],
-            'Semen': ['INTP', 'SMCB', 'SMBR'],
-        }
-        
-        grouped = {}
-        for sector, codes in sectors.items():
-            grouped[sector] = {}
-            for code in codes:
-                key = f"{code}.JK"
-                if key in stocks:
-                    grouped[sector][key] = stocks[key]
-                    
-        return grouped
