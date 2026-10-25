@@ -43,15 +43,12 @@ class IDXScraper:
     
     def get_backup_stocks(self):
         """Backup data saham jika IDX API bermasalah"""
-        
-        # Data dari IDX (update manual via GitHub atau cache)
-        # Bisa di-cache ke file JSON
-        
         try:
-            # Coba load dari cache
             with open('stock_cache.json', 'r') as f:
-                return json.load(f)
-        except:
+                data = json.load(f)
+                # FIX: Ambil dictionary di dalam key 'stocks'
+                return data.get('stocks', {})
+        except Exception:
             return self.get_static_stocks()
     
     def get_static_stocks(self):
