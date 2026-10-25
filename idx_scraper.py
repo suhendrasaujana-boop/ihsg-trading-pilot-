@@ -1,42 +1,42 @@
 import requests
+import pandas as pd
 import streamlit as st
+from io import StringIO
 
 class IDXScraper:
-    """Scraper untuk mengambil SEMUA data saham dari IDX"""
+    """Scraper untuk mengambil SEMUA data saham dari file CSV publik (GitHub)"""
     
     def get_all_stocks(self):
-        """Ambil semua daftar saham dari repositori GitHub (Sangat Cepat & Stabil)"""
+        # URL CSV yang valid dan berisi ratusan saham
+        url = "https://raw.githubusercontent.com/ronnyfahrudin/Scraping_data/master/stocks_list.csv"
+        
         try:
-            # URL ini berisi daftar 900+ saham BEI dalam format JSON
-            url = "https://raw.githubusercontent.com/wildangunawan/Daftar-Saham-IDX/main/data/daftar_saham.json"
-            
-            response = requests.get(url, timeout=10)
-            
+            response = requests.get(url, timeout=15)
             if response.status_code == 200:
-                data = response.json()
-                stocks = {}
+                # Baca CSV dari response
+                df = pd.read_csv(StringIO(response.text))
                 
-                # Format JSON-nya biasanya berupa list of dict: [{"kode": "AALI", "nama": "Astra Agro Lestari"}, ...]
-                if isinstance(data, list):
-                    for item in data:
-                        # Sesuaikan dengan key yang ada di JSON
-                        code = item.get('kode') or item.get('code')
-                        name = item.get('nama') or item.get('name') or "Unknown"
-                        
-                        if code:
-                            stocks[f"{code.strip().upper()}.JK"] = name.strip()
-                            
-                # Jika berhasil dapat lebih dari 100 saham, kembalikan
+                stocks = {}
+                # Loop melalui DataFrame
+                for index, row in df.iterrows():
+                    code = str(row['Code']).strip().upper()
+                    name = str(row['CompanyName']).strip()
+                    
+                    # Kode saham IDX selalu 4 huruf
+                    if len(code) == 4:
+                        stocks[f"{code}.JK"] = name
+                
+                # Jika berhasil dapat lebih dari 100 saham, langsung kembalikan
                 if len(stocks) > 100:
                     return stocks
         except Exception as e:
-            print(f"Gagal mengambil data dari GitHub: {e}")
+            st.error(f"Gagal mengambil data dari CSV: {e}")
         
-        # Jika internet mati total atau GitHub down, pakai daftar cadangan
-        return self.get_static_stocks()
+        # Fallback jika internet mati total (daftar kecil darurat)
+        return self.get_expanded_fallback_stocks()
     
-    def get_static_stocks(self):
-        """Daftar cadangan (Fallback) jika GitHub benar-benar down"""
+    def get_expanded_fallback_stocks(self):
+        """Daftar cadangan (Fallback) jika file CSV gagal diunduh"""
         return {
             'BBCA.JK': 'Bank Central Asia', 'BBRI.JK': 'Bank Rakyat Indonesia', 
             'BMRI.JK': 'Bank Mandiri', 'BBNI.JK': 'Bank Negara Indonesia',
