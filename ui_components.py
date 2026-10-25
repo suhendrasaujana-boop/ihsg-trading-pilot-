@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+import numpy as np
 
 class UIComponents:
     
@@ -137,13 +138,8 @@ class UIComponents:
         fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
         fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
         
-        # Volume - fixed color logic
-        colors = []
-        for i in range(len(df)):
-            if df['Open'].iloc[i] > df['Close'].iloc[i]:
-                colors.append('red')
-            else:
-                colors.append('green')
+        # Volume - FIX: Gunakan numpy untuk performa yang jauh lebih cepat
+        colors = np.where(df['Open'] > df['Close'], 'red', 'green')
         
         fig.add_trace(
             go.Bar(x=df.index, y=df['Volume'], name="Volume", marker_color=colors),
