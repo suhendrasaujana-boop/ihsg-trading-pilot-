@@ -13,7 +13,8 @@ class DataFetcher:
         # Check cache (5 minutes TTL)
         if cache_key in self.cache:
             data, timestamp = self.cache[cache_key]
-            if (datetime.now() - timestamp).seconds < 300:
+            # FIX: Gunakan total_seconds() bukan seconds
+            if (datetime.now() - timestamp).total_seconds() < 300:
                 return data
         
         try:
@@ -36,7 +37,7 @@ class DataFetcher:
         try:
             stock = yf.Ticker(symbol)
             return stock.info.get('regularMarketPrice', None)
-        except:
+        except Exception:
             return None
 
     def get_ihsg_index(self):
